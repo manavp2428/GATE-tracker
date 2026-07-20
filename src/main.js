@@ -42,13 +42,75 @@ let state = {
   exams: JSON.parse(localStorage.getItem("edugate_exams_v4")) || DEFAULT_EXAMS,
   currentView: "dashboard",
   targetQuestions: initialDaysLeft * 35,
-  daysLeft: initialDaysLeft
+  daysLeft: initialDaysLeft,
+  streak: localStorage.getItem("edugate_streak_count") !== null ? Number(localStorage.getItem("edugate_streak_count")) : 1,
+  lastActivityDate: localStorage.getItem("edugate_last_activity_date") || null
 };
 
 // --- CORE UTILITIES ---
 function saveToStorage() {
   localStorage.setItem("edugate_logs_v4", JSON.stringify(state.logs));
   localStorage.setItem("edugate_exams_v4", JSON.stringify(state.exams));
+  localStorage.setItem("edugate_streak_count", state.streak);
+  if (state.lastActivityDate) {
+    localStorage.setItem("edugate_last_activity_date", state.lastActivityDate);
+  } else {
+    localStorage.removeItem("edugate_last_activity_date");
+  }
+}
+
+// Decoupled Streak Expiry Check (Updates at 12:00 AM)
+function checkStreakExpiry() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  if (state.lastActivityDate) {
+    const lastDate = new Date(state.lastActivityDate);
+    lastDate.setHours(0, 0, 0, 0);
+    
+    const diff = (today - lastDate) / (1000 * 60 * 60 * 24);
+    if (diff > 1) {
+      // Studied date is older than yesterday, reset streak to 0
+      state.streak = 0;
+      saveToStorage();
+    }
+  } else {
+    // If there is no activity history recorded yet, force it to 1 day on initial start
+    state.streak = 1;
+    saveToStorage();
+  }
+}
+
+// Record Activity to maintain/increment streak (Only updates local state, decoupled from Supabase)
+function recordActivity() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = today.toISOString().split("T")[0];
+  
+  if (state.lastActivityDate) {
+    const lastDate = new Date(state.lastActivityDate);
+    lastDate.setHours(0, 0, 0, 0);
+    const lastDateStr = lastDate.toISOString().split("T")[0];
+    
+    // Yesterday's date
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
+    
+    if (lastDateStr === yesterdayStr) {
+      // Activity logged yesterday, increment streak
+      state.streak += 1;
+    } else if (lastDateStr !== todayStr) {
+      // Activity logged before yesterday, reset to 1
+      state.streak = 1;
+    }
+  } else {
+    // First study session ever logged
+    state.streak = 1;
+  }
+  
+  state.lastActivityDate = todayStr;
+  saveToStorage();
 }
 
 // --- SUPABASE SYNCING CORE ---
@@ -155,56 +217,9 @@ async function syncExams() {
   }
 }
 
-// Calculate streak based on daily logs and exam records
+// Calculate streak based on local activity state
 function getStreak() {
-  const activityDates = new Set();
-  
-  state.logs.forEach(log => {
-    if (log.date) activityDates.add(log.date);
-  });
-  
-  state.exams.forEach(exam => {
-    if (exam.date) activityDates.add(exam.date);
-  });
-  
-  if (activityDates.size === 0) {
-    return 1; // Default starting streak requested by user
-  }
-  
-  // Sort dates descending
-  const sortedDates = Array.from(activityDates).sort((a, b) => new Date(b) - new Date(a));
-  
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  const latestDate = new Date(sortedDates[0]);
-  latestDate.setHours(0, 0, 0, 0);
-  
-  const diffTime = today - latestDate;
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  
-  // If the last activity is older than yesterday, reset streak to 0
-  if (diffDays > 1) {
-    return 0; 
-  }
-  
-  let streak = 1;
-  let prevDate = latestDate;
-  
-  for (let i = 1; i < sortedDates.length; i++) {
-    const nextDate = new Date(sortedDates[i]);
-    nextDate.setHours(0, 0, 0, 0);
-    
-    const diff = (prevDate - nextDate) / (1000 * 60 * 60 * 24);
-    if (diff === 1) {
-      streak++;
-      prevDate = nextDate;
-    } else if (diff > 1) {
-      break;
-    }
-  }
-  
-  return streak;
+  return state.streak;
 }
 
 // Calculate subject analytics dynamically combining configuration bases with user logs
@@ -451,7 +466,7 @@ function renderDailyLog() {
         tr.innerHTML = `
           <td class="px-6 py-3 text-data-mono font-data-mono text-secondary">${formatDate(log.date)}</td>
           <td class="px-6 py-3 text-body-md font-medium text-on-surface">${log.subject}</td>
-          <td class="px-6 py-3 text-body-sm text-on-surface-variant">${log.topics}</td>
+          <td class="px-6 py-3 text-body-sm text-on-surface-variant topics-cell">${log.topics}<div class="topics-tooltip"><span class="text-primary">SOURCE:</span> ${log.source}</div></td>
           <td class="px-6 py-3 text-center text-data-mono font-data-mono text-primary">${log.solved}</td>
           <td class="px-6 py-3 text-center text-data-mono font-data-mono text-tertiary">${log.revised}</td>
           <td class="px-6 py-3 text-center text-data-mono font-data-mono text-error">${log.doubts}</td>
@@ -887,6 +902,8 @@ window.deleteExam = async function(id) {
 document.getElementById("btn-clear-logs").addEventListener("click", async () => {
   if (confirm("Are you sure you want to clear all log entries? This will reset your dashboard statistics.")) {
     state.logs = [];
+    state.streak = 1;
+    state.lastActivityDate = null;
     saveToStorage();
     renderApp();
     try {
@@ -904,6 +921,8 @@ document.getElementById("btn-clear-logs").addEventListener("click", async () => 
 document.getElementById("btn-clear-exams").addEventListener("click", async () => {
   if (confirm("Are you sure you want to clear all mock exam records?")) {
     state.exams = [];
+    state.streak = 1;
+    state.lastActivityDate = null;
     saveToStorage();
     renderApp();
     try {
@@ -971,7 +990,7 @@ document.getElementById("form-log-entry").addEventListener("submit", (e) => {
   };
   
   state.logs.push(newLog);
-  saveToStorage();
+  recordActivity();
   
   // Async push to Supabase
   supabase.from('logs').upsert([newLog]).then(({error}) => {
@@ -1020,7 +1039,7 @@ document.getElementById("form-exam-entry").addEventListener("submit", (e) => {
   };
   
   state.exams.push(newExam);
-  saveToStorage();
+  recordActivity();
   
   // Async push to Supabase
   supabase.from('exams').upsert([newExam]).then(({error}) => {
@@ -1056,7 +1075,7 @@ document.getElementById("form-quick-log").addEventListener("submit", (e) => {
   };
   
   state.logs.push(newLog);
-  saveToStorage();
+  recordActivity();
   
   // Async push to Supabase
   supabase.from('logs').upsert([newLog]).then(({error}) => {
@@ -1115,6 +1134,9 @@ window.addEventListener("DOMContentLoaded", () => {
   if (document.getElementById("gate-countdown")) {
     document.getElementById("gate-countdown").innerText = state.daysLeft;
   }
+  
+  // Check if study streak has expired (runs daily at 12:00 AM)
+  checkStreakExpiry();
   
   // Initial App Render
   switchView("dashboard");

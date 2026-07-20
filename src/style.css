@@ -72,3 +72,29 @@ body {
 .subject-row:hover {
   background-color: rgba(42, 53, 71, 0.3);
 }
+
+/* Floating Tooltip for Topics cell */
+.topics-cell {
+  position: relative;
+  cursor: pointer;
+}
+.topics-tooltip {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 6px;
+  background-color: #16202B;
+  border: 1px solid #2a3547;
+  color: #d7e3fa;
+  font-size: 11px;
+  border-radius: 4px;
+  padding: 6px 12px;
+  z-index: 999;
+  white-space: nowrap;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+.topics-cell:hover .topics-tooltip {
+  display: block;
+}
