@@ -1,0 +1,74 @@
+/* Global Stylesheet */
+body {
+  background-color: #0F1720;
+  color: #d7e3fa;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Material Icons configuration */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Heatmap Grid */
+.heatmap-square {
+  width: 12px;
+  height: 12px;
+  border: 1px solid #2A3947;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+
+.heatmap-square:hover {
+  transform: scale(1.2);
+  z-index: 10;
+  border-color: #ffb3b4;
+}
+
+/* Panel Borders */
+.panel-border {
+  border: 1px solid #2A3947;
+}
+
+/* Utilitarian Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #071424;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a3547;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #5b403f;
+}
+
+/* Extra utility classes */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #0F1720;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #2A3947;
+  border-radius: 4px;
+}
+
+/* Custom transitions and interactive states */
+.tab-link {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.tab-link:active {
+  transform: scale(0.98);
+}
+
+.subject-row {
+  transition: all 0.2s ease;
+}
+.subject-row:hover {
+  background-color: rgba(42, 53, 71, 0.3);
+}
