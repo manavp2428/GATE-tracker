@@ -155,38 +155,50 @@ async function syncExams() {
   }
 }
 
-// Calculate streak based on daily logs
+// Calculate streak based on daily logs and exam records
 function getStreak() {
-  if (state.logs.length === 0) return 0;
+  const activityDates = new Set();
   
-  // Sort logs by date descending
-  const sortedLogs = [...state.logs].sort((a, b) => new Date(b.date) - new Date(a.date));
+  state.logs.forEach(log => {
+    if (log.date) activityDates.add(log.date);
+  });
   
-  let currentDate = new Date();
-  currentDate.setHours(0, 0, 0, 0);
+  state.exams.forEach(exam => {
+    if (exam.date) activityDates.add(exam.date);
+  });
   
-  const latestLogDate = new Date(sortedLogs[0].date);
-  latestLogDate.setHours(0, 0, 0, 0);
+  if (activityDates.size === 0) {
+    return 1; // Default starting streak requested by user
+  }
   
-  const diffTime = Math.abs(currentDate - latestLogDate);
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  // Sort dates descending
+  const sortedDates = Array.from(activityDates).sort((a, b) => new Date(b) - new Date(a));
   
-  // If the last log is older than yesterday, active streak is 0
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const latestDate = new Date(sortedDates[0]);
+  latestDate.setHours(0, 0, 0, 0);
+  
+  const diffTime = today - latestDate;
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  
+  // If the last activity is older than yesterday, reset streak to 0
   if (diffDays > 1) {
     return 0; 
   }
   
   let streak = 1;
-  let prevDate = latestLogDate;
+  let prevDate = latestDate;
   
-  for (let i = 1; i < sortedLogs.length; i++) {
-    const logDate = new Date(sortedLogs[i].date);
-    logDate.setHours(0, 0, 0, 0);
+  for (let i = 1; i < sortedDates.length; i++) {
+    const nextDate = new Date(sortedDates[i]);
+    nextDate.setHours(0, 0, 0, 0);
     
-    const diff = (prevDate - logDate) / (1000 * 60 * 60 * 24);
+    const diff = (prevDate - nextDate) / (1000 * 60 * 60 * 24);
     if (diff === 1) {
       streak++;
-      prevDate = logDate;
+      prevDate = nextDate;
     } else if (diff > 1) {
       break;
     }
