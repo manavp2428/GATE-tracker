@@ -580,7 +580,7 @@ function renderMasterProgress() {
   const completionPct = ((totalSolved / totalTarget) * 100).toFixed(1);
   document.getElementById("master-completion").innerText = `${completionPct}%`;
   document.getElementById("master-target").innerText = totalTarget.toLocaleString();
-  document.getElementById("master-revised").innerText = `${totalRevised} Topics`;
+  document.getElementById("master-revised").innerText = `${totalRevised} Questions`;
   document.getElementById("master-doubts").innerText = totalDoubts.toLocaleString();
   
   if (totalDoubts > 10) {
@@ -622,7 +622,7 @@ function renderMasterProgress() {
             <span class="font-data-mono text-data-mono ${textClass}">${pct}%</span>
           </div>
         </td>
-        <td class="p-table-cell-padding font-data-mono text-data-mono text-secondary">${data.revised} Topics</td>
+        <td class="p-table-cell-padding font-data-mono text-data-mono text-secondary">${data.revised} Questions</td>
         <td class="p-table-cell-padding font-data-mono text-data-mono ${data.doubts > 0 ? 'text-error font-bold' : 'text-on-surface-variant'}">${data.doubts.toString().padStart(2, '0')}</td>
       `;
       
