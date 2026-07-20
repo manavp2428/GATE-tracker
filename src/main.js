@@ -25,13 +25,24 @@ const SUBJECTS_CONFIG = {
 const DEFAULT_LOGS = [];
 const DEFAULT_EXAMS = [];
 
+// Calculate dynamic days left until GATE 2027 (Feb 6, 2027)
+function calculateDaysLeft() {
+  const gateDate = new Date("2027-02-06");
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffTime = gateDate - today;
+  return Math.max(Math.ceil(diffTime / (1000 * 60 * 60 * 24)), 0);
+}
+
+const initialDaysLeft = calculateDaysLeft();
+
 // --- APP STATE ---
 let state = {
   logs: JSON.parse(localStorage.getItem("edugate_logs_v3")) || DEFAULT_LOGS,
   exams: JSON.parse(localStorage.getItem("edugate_exams_v3")) || DEFAULT_EXAMS,
   currentView: "dashboard",
-  targetQuestions: 4480,
-  daysLeft: 128
+  targetQuestions: initialDaysLeft * 35,
+  daysLeft: initialDaysLeft
 };
 
 // --- CORE UTILITIES ---
@@ -1071,6 +1082,11 @@ window.addEventListener("DOMContentLoaded", () => {
   // Set current date in top bar
   const dateOptions = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };
   document.getElementById("header-date").innerText = new Date().toLocaleDateString('en-US', dateOptions).toUpperCase();
+  
+  // Set dynamic countdown
+  if (document.getElementById("gate-countdown")) {
+    document.getElementById("gate-countdown").innerText = state.daysLeft;
+  }
   
   // Initial App Render
   switchView("dashboard");
