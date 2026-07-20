@@ -25,9 +25,9 @@ const SUBJECTS_CONFIG = {
 const DEFAULT_LOGS = [];
 const DEFAULT_EXAMS = [];
 
-// Calculate dynamic days left until GATE (Dec 5, 2026)
+// Calculate dynamic days left until GATE (Jan 5, 2027)
 function calculateDaysLeft() {
-  const gateDate = new Date("2026-12-05");
+  const gateDate = new Date("2027-01-05");
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const diffTime = gateDate - today;
@@ -262,7 +262,7 @@ function switchView(viewId) {
   renderApp();
 }
 
-// Render Heatmap (90 Days)
+// Render Heatmap (138 Days)
 function renderHeatmap() {
   const container = document.getElementById("heatmap-container");
   if (!container) return;
@@ -274,9 +274,9 @@ function renderHeatmap() {
     dateMap[log.date] = (dateMap[log.date] || 0) + parseInt(log.solved || 0);
   });
   
-  // Create 90 squares ending today
+  // Create 138 squares ending today
   const today = new Date();
-  for (let i = 89; i >= 0; i--) {
+  for (let i = 137; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(today.getDate() - i);
     const dateStr = date.toISOString().split("T")[0];
