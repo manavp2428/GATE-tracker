@@ -25,9 +25,9 @@ const SUBJECTS_CONFIG = {
 const DEFAULT_LOGS = [];
 const DEFAULT_EXAMS = [];
 
-// Calculate dynamic days left until GATE 2027 (Feb 6, 2027)
+// Calculate dynamic days left until GATE (Dec 5, 2026)
 function calculateDaysLeft() {
-  const gateDate = new Date("2027-02-06");
+  const gateDate = new Date("2026-12-05");
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const diffTime = gateDate - today;
