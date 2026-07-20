@@ -38,8 +38,8 @@ const initialDaysLeft = calculateDaysLeft();
 
 // --- APP STATE ---
 let state = {
-  logs: JSON.parse(localStorage.getItem("edugate_logs_v3")) || DEFAULT_LOGS,
-  exams: JSON.parse(localStorage.getItem("edugate_exams_v3")) || DEFAULT_EXAMS,
+  logs: JSON.parse(localStorage.getItem("edugate_logs_v4")) || DEFAULT_LOGS,
+  exams: JSON.parse(localStorage.getItem("edugate_exams_v4")) || DEFAULT_EXAMS,
   currentView: "dashboard",
   targetQuestions: initialDaysLeft * 35,
   daysLeft: initialDaysLeft
@@ -47,8 +47,8 @@ let state = {
 
 // --- CORE UTILITIES ---
 function saveToStorage() {
-  localStorage.setItem("edugate_logs_v3", JSON.stringify(state.logs));
-  localStorage.setItem("edugate_exams_v3", JSON.stringify(state.exams));
+  localStorage.setItem("edugate_logs_v4", JSON.stringify(state.logs));
+  localStorage.setItem("edugate_exams_v4", JSON.stringify(state.exams));
 }
 
 // --- SUPABASE SYNCING CORE ---
@@ -274,7 +274,7 @@ function switchView(viewId) {
   renderApp();
 }
 
-// Render Heatmap (138 Days)
+// Render Heatmap (180 Days)
 function renderHeatmap() {
   const container = document.getElementById("heatmap-container");
   if (!container) return;
@@ -286,9 +286,9 @@ function renderHeatmap() {
     dateMap[log.date] = (dateMap[log.date] || 0) + parseInt(log.solved || 0);
   });
   
-  // Create 138 squares ending today
+  // Create 180 squares ending today
   const today = new Date();
-  for (let i = 137; i >= 0; i--) {
+  for (let i = 179; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(today.getDate() - i);
     const dateStr = date.toISOString().split("T")[0];
@@ -884,20 +884,36 @@ window.deleteExam = async function(id) {
 };
 
 // Clear All Logs
-document.getElementById("btn-clear-logs").addEventListener("click", () => {
+document.getElementById("btn-clear-logs").addEventListener("click", async () => {
   if (confirm("Are you sure you want to clear all log entries? This will reset your dashboard statistics.")) {
     state.logs = [];
     saveToStorage();
     renderApp();
+    try {
+      const { error } = await supabase.from('logs').delete().neq('id', '');
+      if (error) throw error;
+      updateSyncStatus("SYNCED");
+    } catch (err) {
+      console.error("Failed to clear logs in Supabase: ", err);
+      updateSyncStatus("ERROR");
+    }
   }
 });
 
 // Clear All Exams
-document.getElementById("btn-clear-exams").addEventListener("click", () => {
+document.getElementById("btn-clear-exams").addEventListener("click", async () => {
   if (confirm("Are you sure you want to clear all mock exam records?")) {
     state.exams = [];
     saveToStorage();
     renderApp();
+    try {
+      const { error } = await supabase.from('exams').delete().neq('id', '');
+      if (error) throw error;
+      updateSyncStatus("SYNCED");
+    } catch (err) {
+      console.error("Failed to clear exams in Supabase: ", err);
+      updateSyncStatus("ERROR");
+    }
   }
 });
 
