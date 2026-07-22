@@ -8,17 +8,17 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // --- CONSTANTS & CONFIGURATION ---
 const SUBJECTS_CONFIG = {
-  "General Aptitude": { target: 300, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
-  "Engineering Mathematics": { target: 400, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
-  "Dircrete Maths": { target: 650, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
-  "Data Structures & Prog": { target: 450, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
-  "Algorithms": { target: 400, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
-  "COA": { target: 350, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
-  "Operationg Systems": { target: 600, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
-  "ToC": { target: 500, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
-  "DBMS": { target: 450, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
-  "Computer Networks": { target: 550, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
-  "Digital Logic": { target: 300, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
+  "General Aptitude": { target: 750, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
+  "Engineering Mathematics": { target: 300, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
+  "Discrete Maths": { target: 500, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
+  "Data Structures & Prog": { target: 550, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
+  "Algorithms": { target: 350, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
+  "COA": { target: 550, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
+  "Operating Systems": { target: 500, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
+  "ToC": { target: 450, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
+  "DBMS": { target: 350, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
+  "Computer Networks": { target: 300, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
+  "Digital Logic": { target: 200, baseDone: 0, baseRevised: 0, baseDoubts: 0 },
   "Compiler Design": { target: 200, baseDone: 0, baseRevised: 0, baseDoubts: 0 }
 };
 
@@ -41,76 +41,97 @@ let state = {
   logs: JSON.parse(localStorage.getItem("edugate_logs_v4")) || DEFAULT_LOGS,
   exams: JSON.parse(localStorage.getItem("edugate_exams_v4")) || DEFAULT_EXAMS,
   currentView: "dashboard",
-  targetQuestions: initialDaysLeft * 35,
-  daysLeft: initialDaysLeft,
-  streak: localStorage.getItem("edugate_streak_count") !== null ? Number(localStorage.getItem("edugate_streak_count")) : 1,
-  lastActivityDate: localStorage.getItem("edugate_last_activity_date") || null
+  targetQuestions: Object.values(SUBJECTS_CONFIG).reduce((sum, c) => sum + c.target, 0),
+  daysLeft: initialDaysLeft
 };
 
 // --- CORE UTILITIES ---
+function getLocalDateString(date) {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// Calculate streak dynamically based on activity dates
+function getStreak() {
+  const dates = new Set();
+  
+  if (Array.isArray(state.logs)) {
+    state.logs.forEach(log => {
+      if (log.date) {
+        const dStr = log.date.split("T")[0];
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) {
+          dates.add(dStr);
+        }
+      }
+    });
+  }
+  
+  if (Array.isArray(state.exams)) {
+    state.exams.forEach(exam => {
+      if (exam.date) {
+        const dStr = exam.date.split("T")[0];
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) {
+          dates.add(dStr);
+        }
+      }
+    });
+  }
+  
+  if (dates.size === 0) {
+    return 0;
+  }
+  
+  const today = new Date();
+  const todayStr = getLocalDateString(today);
+  
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const yesterdayStr = getLocalDateString(yesterday);
+  
+  if (!dates.has(todayStr) && !dates.has(yesterdayStr)) {
+    return 0;
+  }
+  
+  let checkDate = dates.has(todayStr) ? today : yesterday;
+  let streak = 0;
+  
+  while (true) {
+    const checkStr = getLocalDateString(checkDate);
+    if (dates.has(checkStr)) {
+      streak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+  
+  return streak;
+}
+
 function saveToStorage() {
   localStorage.setItem("edugate_logs_v4", JSON.stringify(state.logs));
   localStorage.setItem("edugate_exams_v4", JSON.stringify(state.exams));
-  localStorage.setItem("edugate_streak_count", state.streak);
-  if (state.lastActivityDate) {
-    localStorage.setItem("edugate_last_activity_date", state.lastActivityDate);
+  
+  // Backward compatibility in localStorage
+  const currentStreak = getStreak();
+  localStorage.setItem("edugate_streak_count", currentStreak);
+  
+  const dates = [];
+  state.logs.forEach(log => {
+    if (log.date) dates.push(log.date.split("T")[0]);
+  });
+  state.exams.forEach(exam => {
+    if (exam.date) dates.push(exam.date.split("T")[0]);
+  });
+  if (dates.length > 0) {
+    dates.sort();
+    const latestDate = dates[dates.length - 1];
+    localStorage.setItem("edugate_last_activity_date", latestDate);
   } else {
     localStorage.removeItem("edugate_last_activity_date");
   }
-}
-
-// Decoupled Streak Expiry Check (Updates at 12:00 AM)
-function checkStreakExpiry() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  if (state.lastActivityDate) {
-    const lastDate = new Date(state.lastActivityDate);
-    lastDate.setHours(0, 0, 0, 0);
-    
-    const diff = (today - lastDate) / (1000 * 60 * 60 * 24);
-    if (diff > 1) {
-      // Studied date is older than yesterday, reset streak to 0
-      state.streak = 0;
-      saveToStorage();
-    }
-  } else {
-    // If there is no activity history recorded yet, force it to 1 day on initial start
-    state.streak = 1;
-    saveToStorage();
-  }
-}
-
-// Record Activity to maintain/increment streak (Only updates local state, decoupled from Supabase)
-function recordActivity() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().split("T")[0];
-  
-  if (state.lastActivityDate) {
-    const lastDate = new Date(state.lastActivityDate);
-    lastDate.setHours(0, 0, 0, 0);
-    const lastDateStr = lastDate.toISOString().split("T")[0];
-    
-    // Yesterday's date
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split("T")[0];
-    
-    if (lastDateStr === yesterdayStr) {
-      // Activity logged yesterday, increment streak
-      state.streak += 1;
-    } else if (lastDateStr !== todayStr) {
-      // Activity logged before yesterday, reset to 1
-      state.streak = 1;
-    }
-  } else {
-    // First study session ever logged
-    state.streak = 1;
-  }
-  
-  state.lastActivityDate = todayStr;
-  saveToStorage();
 }
 
 // --- SUPABASE SYNCING CORE ---
@@ -217,10 +238,6 @@ async function syncExams() {
   }
 }
 
-// Calculate streak based on local activity state
-function getStreak() {
-  return state.streak;
-}
 
 // Calculate subject analytics dynamically combining configuration bases with user logs
 function getSubjectAnalytics() {
@@ -238,11 +255,16 @@ function getSubjectAnalytics() {
   
   // Accumulate from custom logs
   state.logs.forEach(log => {
-    if (analytics[log.subject]) {
-      analytics[log.subject].done += parseInt(log.solved || 0);
-      analytics[log.subject].revised += parseInt(log.revised || 0);
+    let subject = log.subject;
+    // Normalize spelling for backward compatibility with database
+    if (subject === "Dircrete Maths") subject = "Discrete Maths";
+    if (subject === "Operationg Systems") subject = "Operating Systems";
+    
+    if (analytics[subject]) {
+      analytics[subject].done += parseInt(log.solved || 0);
+      analytics[subject].revised += parseInt(log.revised || 0);
       if (log.status === "PENDING") {
-        analytics[log.subject].doubts += parseInt(log.doubts || 0);
+        analytics[subject].doubts += parseInt(log.doubts || 0);
       }
     }
   });
@@ -289,7 +311,7 @@ function switchView(viewId) {
   renderApp();
 }
 
-// Render Heatmap (180 Days)
+// Render Heatmap (Dynamic starting from oldest activity)
 function renderHeatmap() {
   const container = document.getElementById("heatmap-container");
   if (!container) return;
@@ -301,12 +323,31 @@ function renderHeatmap() {
     dateMap[log.date] = (dateMap[log.date] || 0) + parseInt(log.solved || 0);
   });
   
-  // Create 180 squares ending today
+  // Find the earliest activity date in logs/exams to start the heatmap from it
+  const allDates = [];
+  state.logs.forEach(log => {
+    if (log.date) allDates.push(new Date(log.date.split("T")[0]));
+  });
+  state.exams.forEach(exam => {
+    if (exam.date) allDates.push(new Date(exam.date.split("T")[0]));
+  });
+  
   const today = new Date();
-  for (let i = 179; i >= 0; i--) {
+  today.setHours(0, 0, 0, 0);
+  
+  let numDays = 180; // default fallback if no activity
+  if (allDates.length > 0) {
+    allDates.sort((a, b) => a - b);
+    const earliestActivity = allDates[0];
+    earliestActivity.setHours(0, 0, 0, 0);
+    const diffTime = today - earliestActivity;
+    numDays = Math.max(Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1, 1);
+  }
+  
+  for (let i = numDays - 1; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(today.getDate() - i);
-    const dateStr = date.toISOString().split("T")[0];
+    const dateStr = getLocalDateString(date);
     const solvedCount = dateMap[dateStr] || 0;
     
     const square = document.createElement("div");
@@ -902,8 +943,6 @@ window.deleteExam = async function(id) {
 document.getElementById("btn-clear-logs").addEventListener("click", async () => {
   if (confirm("Are you sure you want to clear all log entries? This will reset your dashboard statistics.")) {
     state.logs = [];
-    state.streak = 1;
-    state.lastActivityDate = null;
     saveToStorage();
     renderApp();
     try {
@@ -921,8 +960,6 @@ document.getElementById("btn-clear-logs").addEventListener("click", async () => 
 document.getElementById("btn-clear-exams").addEventListener("click", async () => {
   if (confirm("Are you sure you want to clear all mock exam records?")) {
     state.exams = [];
-    state.streak = 1;
-    state.lastActivityDate = null;
     saveToStorage();
     renderApp();
     try {
@@ -990,7 +1027,7 @@ document.getElementById("form-log-entry").addEventListener("submit", (e) => {
   };
   
   state.logs.push(newLog);
-  recordActivity();
+  saveToStorage();
   
   // Async push to Supabase
   supabase.from('logs').upsert([newLog]).then(({error}) => {
@@ -1015,7 +1052,7 @@ document.getElementById("form-log-entry").addEventListener("submit", (e) => {
       
       e.target.reset();
       // Reset default date to today
-      document.getElementById("log-date").value = new Date().toISOString().split("T")[0];
+      document.getElementById("log-date").value = getLocalDateString(new Date());
       
       renderApp();
     }, 1500);
@@ -1039,7 +1076,7 @@ document.getElementById("form-exam-entry").addEventListener("submit", (e) => {
   };
   
   state.exams.push(newExam);
-  recordActivity();
+  saveToStorage();
   
   // Async push to Supabase
   supabase.from('exams').upsert([newExam]).then(({error}) => {
@@ -1053,7 +1090,7 @@ document.getElementById("form-exam-entry").addEventListener("submit", (e) => {
 
   e.target.reset();
   // Set date back to today
-  document.getElementById("exam-date").value = new Date().toISOString().split("T")[0];
+  document.getElementById("exam-date").value = getLocalDateString(new Date());
   
   renderApp();
 });
@@ -1075,7 +1112,7 @@ document.getElementById("form-quick-log").addEventListener("submit", (e) => {
   };
   
   state.logs.push(newLog);
-  recordActivity();
+  saveToStorage();
   
   // Async push to Supabase
   supabase.from('logs').upsert([newLog]).then(({error}) => {
@@ -1104,7 +1141,7 @@ document.getElementById("nav-exam-records").addEventListener("click", () => swit
 
 // Quick Add Modal Toggles
 document.getElementById("btn-quick-add").addEventListener("click", () => {
-  document.getElementById("quick-log-date").value = new Date().toISOString().split("T")[0];
+  document.getElementById("quick-log-date").value = getLocalDateString(new Date());
   document.getElementById("modal-quick-log").classList.remove("hidden");
 });
 document.getElementById("btn-close-modal").addEventListener("click", () => {
@@ -1120,7 +1157,7 @@ document.getElementById("modal-quick-log").addEventListener("click", (e) => {
 
 // Initialize Date fields to today
 window.addEventListener("DOMContentLoaded", () => {
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getLocalDateString(new Date());
   
   if (document.getElementById("log-date")) document.getElementById("log-date").value = todayStr;
   if (document.getElementById("exam-date")) document.getElementById("exam-date").value = todayStr;
@@ -1134,9 +1171,6 @@ window.addEventListener("DOMContentLoaded", () => {
   if (document.getElementById("gate-countdown")) {
     document.getElementById("gate-countdown").innerText = state.daysLeft;
   }
-  
-  // Check if study streak has expired (runs daily at 12:00 AM)
-  checkStreakExpiry();
   
   // Initial App Render
   switchView("dashboard");
